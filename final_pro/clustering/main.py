@@ -33,7 +33,7 @@ def main():
         assign, _ = kmeans.receiver(args, features)
 
     elif args.alg == 'meanshift':
-        args = utility.Config(num_epoch=args.num_epoch, debug=False, bandwidth=args.bandwidth)
+        args = utility.Config(num_epoch=args.num_epoch, debug=True, bandwidth=args.bandwidth)
         assign, _ = mean_shift.receiver(args, features)
 
     elif args.alg == 'spectral':

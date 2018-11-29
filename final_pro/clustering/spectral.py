@@ -18,8 +18,12 @@ def data_to_graph(x, adj_type='knn', **kwargs):
 
     feat_norm = np.sum(x**2, axis=1)  # (N,)
     feat_dot = x.dot(x.T)  # (N, N)
-    dist = np.sqrt(feat_norm[:, None] - 2 * feat_dot + feat_norm[None, :] + 1e-4)
-    arg_sort_dist = [set(row.tolist()) for row in np.argsort(dist, axis=1)[:, :kwargs['num_neighbor']]]
+    dist = feat_norm[:, None] - 2 * feat_dot + feat_norm[None, :]
+    dist[dist < 1e-3] = 0
+    dist = np.sqrt(dist)
+
+    arg_sort_dist = [set(row.tolist()) for row in np.argsort(dist, axis=1)[:, :kwargs['num_neighbor']]] \
+        if adj_type == 'knn' else None
     del feat_dot
 
     graph = np.zeros(shape=(N, N), dtype=np.float64)
