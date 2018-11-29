@@ -1,0 +1,7 @@
+The parameters are: [-35.521, 46.725, 62.644, -32.224, -2.473, 9.200]
+Poly-order  :     5
+Alg         :   rls
+Lambda      :  0.60
+Sample-num  :    25
+Outlier-num :     3
+The mean squared error is 8091.7347.
