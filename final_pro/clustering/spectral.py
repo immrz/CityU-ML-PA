@@ -56,10 +56,7 @@ def cluster(x, num_cluster, adj_type, num_epoch=100, **kwargs):
     :return: The assignment of each data point. Shape (N,). The cluster number starts from 0.
     """
     adj_graph = data_to_graph(x, adj_type=adj_type, **kwargs)
-
-    print('graph computed!')
-    if input() != 'y':
-        exit(-1)
+    print('Graph computed!')
 
     degree = np.sum(adj_graph, axis=0)
     laplacian = np.diag(degree) - adj_graph
@@ -72,6 +69,7 @@ def cluster(x, num_cluster, adj_type, num_epoch=100, **kwargs):
         factor = np.diag(1 / degree)
         laplacian = factor.dot(laplacian)
 
+    print('Begin eigen decomposition!')
     eival, eivec = np.linalg.eigh(laplacian)
     eivec = eivec[:, :num_cluster]  # shape (N, K)
     args = util.Config(num_cluster=num_cluster, num_epoch=num_epoch, debug=True)
