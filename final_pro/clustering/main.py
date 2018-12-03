@@ -7,6 +7,7 @@ import time
 from sklearn import metrics
 import argparse
 import scipy.cluster.vq as vq
+import multiprocessing as mp
 
 
 def load_feat_and_target(folder):
@@ -18,23 +19,25 @@ def load_feat_and_target(folder):
     return features, targets
 
 
-def main():
-    args = parse_args()
+def main(cmd=None):
+    args = parse_args(cmd=cmd)
     features, targets = load_feat_and_target(args.folder)
     if args.whiten:
         features = vq.whiten(features)
     targets = targets.astype(np.int32)
 
+    print('Number {:d} started!'.format(args.save_postfix))
+
     num_cluster = 10
     since = time.time()
 
     if args.alg == 'kmeans':
-        args = utility.Config(num_cluster=num_cluster, num_epoch=args.num_epoch, debug=True)
-        assign, _ = kmeans.receiver(args, features)
+        sub_args = utility.Config(num_cluster=num_cluster, num_epoch=args.num_epoch, debug=False)
+        assign, _ = kmeans.receiver(sub_args, features)
 
     elif args.alg == 'meanshift':
-        args = utility.Config(num_epoch=args.num_epoch, debug=True, bandwidth=args.bandwidth)
-        assign, _ = mean_shift.receiver(args, features)
+        sub_args = utility.Config(num_epoch=args.num_epoch, debug=False, bandwidth=args.bandwidth)
+        assign, _ = mean_shift.receiver(sub_args, features)
 
     elif args.alg == 'spectral':
         kw = {'num_epoch': args.num_epoch}
@@ -54,17 +57,15 @@ def main():
 
     elapsed = time.time() - since
     adj_rand_idx = metrics.adjusted_rand_score(labels_true=targets, labels_pred=assign)
-    print('It takes {:.0f}h {:.0f}m {:.0f}s to finish\nThe Adjusted Random Index is {:.4f}'.format(
-        elapsed // 3600, elapsed % 3600 // 60, elapsed % 60, adj_rand_idx))
+    ret_msg = '{:02d}: It takes {:.0f}h {:.0f}m {:.0f}s to finish. The Adjusted Random Index is {:.4f}'.format(
+        args.save_postfix, elapsed // 3600, elapsed % 3600 // 60, elapsed % 60, adj_rand_idx)
 
-    print('Do you want to save the assignment?')
-    save_path = input().strip()
-    if save_path != 'no':
+    if args.save_path is not None:
         try:
-            np.savetxt(os.path.join(save_path, 'assignment.txt'), assign)
+            np.savetxt(os.path.join(args.save_path, 'res_{:02d}.txt'.format(args.save_postfix)), assign)
         except:
             print('Saving failed!')
-    return elapsed, assign
+    return ret_msg, assign
 
 
 def parse_args(cmd=None):
@@ -84,6 +85,8 @@ def parse_args(cmd=None):
     parser.add_argument('--sigma', default=1., type=float, help='The threshold of the fully adjacency.')
     parser.add_argument('--norm-lap', default=None, choices=['sym', 'rw', None], type=str,
                         help='If not None, specify which kind of normalized Laplacian to use.')
+    parser.add_argument('--save-path', default=None, type=str, help='The folder to save results.')
+    parser.add_argument('--save-postfix', type=int, help='The postfix of the saved result file.')
 
     if cmd is None:
         args = parser.parse_args()
@@ -93,5 +96,65 @@ def parse_args(cmd=None):
     return args
 
 
+def multi_args():
+    choices = ['../ spectral --adj-type knn --num-neighbor 50 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 60 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 70 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 80 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 90 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 100 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 110 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 120 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 130 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 140 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 150 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 160 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 170 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 180 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 190 --norm-lap sym',
+               '../ spectral --adj-type knn --num-neighbor 200 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 8 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 9 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 10 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 11 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 12 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 13 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 14 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 15 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 16 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 17 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 18 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 19 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 20 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 21 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 22 --norm-lap sym',
+               '../ spectral --adj-type epsilon --epsilon 23 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.1 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.2 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.3 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.4 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.5 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.6 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.7 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.8 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 0.9 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.0 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.1 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.2 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.3 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.4 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.5 --norm-lap sym',
+               '../ spectral --adj-type fully --sigma 1.6 --norm-lap sym']
+    choices = list([c + ' --save-path ../results --save-postfix {:d}'.format(i) for i, c in enumerate(choices)])
+    pool = mp.Pool(processes=48)
+    multi_res = pool.map(main, choices)
+    pool.close()
+    pool.join()
+
+    for msg, _ in multi_res:
+        print(msg)
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    multi_args()
