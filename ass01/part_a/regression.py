@@ -118,20 +118,20 @@ def poly_interpolate(args, x, y):
     elif args.alg == 'rls':
         theta = np.linalg.inv(phi.dot(phi.T) + args.wd*np.eye(K)).dot(phi.dot(y))
     elif args.alg == 'lasso':
-        theta = lasso_solver.soft_threshold(args, x, y)
+        theta = lasso_solver.soft_threshold(phi, y, args.epoch, args.wd)
     elif args.alg == 'br':
         sigma_post = np.linalg.inv(np.eye(K)/args.alpha + phi.dot(phi.T)/args.var)
         mu_post = sigma_post.dot(phi.dot(y)) / args.var
         theta = (mu_post, sigma_post)
     elif args.alg == 'rr':
-        theta = robust_solver.robust_regression(args, x, y)
+        theta = robust_solver.robust_regression(phi, y, args.epoch)
     else:
         raise NotImplementedError
 
     return theta
 
 
-def analyze_result(args, samp, real, theta, ax=None):
+def analyze_result(args, samp, real, theta, ax=None, only_mse=False):
     """Draw figures to compare the learned polynomial with the real function.
     Also, compute the RMSE between the two functions.
 
@@ -139,6 +139,7 @@ def analyze_result(args, samp, real, theta, ax=None):
     :param real: A list containing x and y of the true function.
     :param theta: The weight that needs to be learned.
     :param ax: The axes to plot on.
+    :param only_mse: If False, draw the curves and data points.
     """
     phi = np.vstack([real[0] ** i for i in range(args.order + 1)])
 
@@ -156,6 +157,9 @@ def analyze_result(args, samp, real, theta, ax=None):
     diff = interpolated - real[1]
     mse = diff.dot(diff) / diff.shape[0]
     print('{}\nThe mean squared error is {:.4f}.'.format(args.conf_txt, mse))
+
+    if only_mse:
+        return mse
 
     # draw the figure
     if ax is None:
@@ -184,7 +188,7 @@ def main(argv=None):
 
 
 def run_five_alg():
-    common = '--order 5 --wd 5 --alpha 1 --var 5 --data-pct 0.1'
+    common = '--order 10 --wd 5 --alpha 1 --var 5'
     to_do = [' --alg ' + alg for alg in ['ls', 'rls', 'lasso', 'br', 'rr']]
 
     sampx, sampy = read_data(sample=True)
@@ -207,7 +211,45 @@ def run_five_alg():
     plt.show()
 
 
+def error_versus_data_amount():
+    num_epoch = 20
+    common = '--order 5 --wd 5 --alpha 1 --var 1 --data-pct {:.2f}'
+    to_do = [' --alg ' + alg for alg in ['ls', 'rls', 'lasso', 'br', 'rr']]
+    sampx, sampy = read_data(sample=True)
+    realx, realy = read_data(sample=False)
+
+    data_pct = [x / 100 for x in range(20, 80, 5)]
+    err_mat = []  # shape (len(data_pct), 5)
+
+    for pct in data_pct:
+        err = [0] * len(to_do)
+
+        for _ in range(num_epoch):
+            curx, cury = None, None
+            for i in range(len(to_do)):
+                argv = common.format(pct) + to_do[i]
+                args = parse_args(argv)
+
+                if i == 0:
+                    curx, cury = data_perturbation(args, sampx, sampy)
+                theta = poly_interpolate(args, curx, cury)
+                mse = analyze_result(args, [curx, cury], [realx, realy], theta, only_mse=True)
+                err[i] += np.sqrt(mse)
+
+        err = [e / num_epoch for e in err]
+        err_mat.append(err)
+
+    err_mat = np.array(err_mat).T  # (5, len(data_pct))
+    for i, row in enumerate(err_mat):
+        plt.plot(data_pct, row, marker='+', label=to_do[i].split()[-1])
+    plt.xlabel('Data percentage')
+    plt.ylabel('RMSE')
+    plt.legend()
+    plt.show()
+
+
 if __name__ == '__main__':
     DATA_PATH = r'D:\cityU\Courses\MachineLearning\PA01\PA-1-data-text\PA-1-data-text'
     # main('--order 5 --alg rls --wd 5 --debug --alpha 1 --var 5')
     run_five_alg()
+    # error_versus_data_amount()
